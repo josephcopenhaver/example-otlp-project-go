@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: josephcopenhaver/middle-service
+  repository: k3d-registry:5000/josephcopenhaver/middle-service
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
