@@ -21,6 +21,7 @@ import (
 	hostmetric "go.opentelemetry.io/contrib/instrumentation/host"
 	runtimemetric "go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -28,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var ServiceName = "end-service"
@@ -371,8 +373,25 @@ func main() {
 		h.Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		_, ignoredErr := w.Write([]byte(`{"status":"ok"}` + "\n"))
-		_ = ignoredErr
+		_, err := w.Write([]byte(`{"status":"ok"}` + "\n"))
+		if err != nil {
+			span := trace.SpanFromContext(r.Context())
+			span.RecordError(err)
+			return nil
+		}
+
+		if v, ok := w.(interface{ Flush() error }); ok {
+			if err := v.Flush(); err != nil {
+				span := trace.SpanFromContext(r.Context())
+				span.RecordError(err)
+				return nil
+			}
+		}
+
+		span := trace.SpanFromContext(r.Context())
+		span.SetAttributes(
+			attribute.Bool("manual.drop", true),
+		)
 
 		return nil
 	})
